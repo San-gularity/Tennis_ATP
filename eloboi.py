@@ -54,6 +54,133 @@ def load_matches(files: Optional[List[str]] = None) -> pd.DataFrame:
     matches = matches.sort_values(["tourney_date", "match_num"]).reset_index(drop=True)
     return matches
 
+def load_clay_matches_1990_2024(files: Optional[List[str]] = None) -> pd.DataFrame:
+    """
+    Load matches, keep only CLAY surface and dates between 1990-01-01 and 2024-12-31.
+    Returns a DataFrame with the same columns that EloEngine expects.
+    """
+    if files is None:
+        files = find_match_files()
+
+    dfs: List[pd.DataFrame] = []
+    for f in files:
+        try:
+            dfs.append(pd.read_csv(f, low_memory=False))
+        except Exception:
+            continue
+
+    if not dfs:
+        return pd.DataFrame()
+
+    matches_raw = pd.concat(dfs, ignore_index=True)
+
+    # require a surface column
+    if "surface" not in matches_raw.columns:
+        raise RuntimeError("No 'surface' column found in match CSVs")
+
+    # keep only clay matches (case-insensitive)
+    clay = matches_raw[matches_raw["surface"].str.upper() == "CLAY"].copy()
+
+    # parse tourney_date
+    clay["tourney_date"] = pd.to_datetime(
+        clay["tourney_date"].astype(str),
+        format="%Y%m%d",
+        errors="coerce",
+    )
+
+    # filter date range 2000–2024
+    start = pd.Timestamp("1990-01-01")
+    end   = pd.Timestamp("2024-12-31")
+    clay = clay[(clay["tourney_date"] >= start) & (clay["tourney_date"] <= end)]
+
+    # keep only the columns EloEngine actually uses
+    cols = ["winner_name", "loser_name", "tourney_level", "tourney_date", "match_num"]
+    clay = clay.loc[:, [c for c in cols if c in clay.columns]].copy()
+
+    # clean match_num and sort
+    clay["match_num"] = pd.to_numeric(clay.get("match_num", 0), errors="coerce").fillna(0).astype(int)
+    clay = clay.sort_values(["tourney_date", "match_num"]).reset_index(drop=True)
+
+    return clay
+
+def export_grass_elo_1990_2024(out_csv: str = "Data/elo_grass_1990_2024.csv") -> str:
+    """
+    Compute Elo ratings using only matches on GRASS surface between 1990 and 2024,
+    and export a wide CSV: 'date' + one column per player.
+    """
+    # find all match files like atp_matches_YYYY.csv
+    files = find_match_files(root=".")
+    if not files:
+        files = find_match_files(root="Data/SingleMatches")
+
+    if not files:
+        print("No match CSV files found.")
+        return ""
+
+    dfs = []
+    for f in files:
+        try:
+            dfs.append(pd.read_csv(f, low_memory=False))
+        except Exception as e:
+            print(f"Skipping {f}: {e}")
+
+    if not dfs:
+        print("No data loaded from CSVs.")
+        return ""
+
+    matches_raw = pd.concat(dfs, ignore_index=True)
+
+    # make sure needed columns exist
+    for c in ["winner_name", "loser_name", "tourney_date"]:
+        if c not in matches_raw.columns:
+            raise RuntimeError(f"Required column '{c}' not found in match data")
+
+    if "surface" not in matches_raw.columns:
+        raise RuntimeError("No 'surface' column found in match data")
+
+    # 1) keep only GRASS matches
+    grass = matches_raw[matches_raw["surface"].str.upper() == "GRASS"].copy()
+
+    # 2) parse date and filter to 1990–2024
+    grass["tourney_date"] = pd.to_datetime(
+        grass["tourney_date"].astype(str),
+        format="%Y%m%d",
+        errors="coerce",
+    )
+
+    start = pd.Timestamp("1990-01-01")
+    end   = pd.Timestamp("2024-12-31")
+    grass = grass[(grass["tourney_date"] >= start) & (grass["tourney_date"] <= end)]
+
+    if grass.empty:
+        print("No GRASS matches between 1990 and 2024.")
+        return ""
+
+    # 3) keep only columns EloEngine needs
+    cols = ["winner_name", "loser_name", "tourney_level", "tourney_date", "match_num"]
+    present = [c for c in cols if c in grass.columns]
+    grass = grass.loc[:, present].copy()
+
+    # 4) sort by date and match_num
+    if "match_num" in grass.columns:
+        grass["match_num"] = pd.to_numeric(
+            grass["match_num"], errors="coerce"
+        ).fillna(0).astype(int)
+        grass = grass.sort_values(["tourney_date", "match_num"])
+    else:
+        grass = grass.sort_values(["tourney_date"])
+
+    grass = grass.reset_index(drop=True)
+
+    # 5) compute Elo and export wide CSV (date + one column per player)
+    engine = EloEngine()
+    engine.compute_from_matches(grass)
+
+    path = export_all_players_timeseries_csv(engine, out_csv=out_csv)
+    print(f"Saved GRASS Elo (1990–2024) to: {os.path.abspath(path)}")
+    return path
+
+
 
 # --- Elo machinery -------------------------------------------------------
 FIRST_DATE = pd.Timestamp("1900-01-01")
@@ -488,6 +615,25 @@ def main():
         print(f"Saved top-5 Elo time series to: {os.path.abspath(path)}")
     except Exception as e:
         print(f"Failed to export top players CSV: {e}")
+        
+        # ------------------------------------------------------------------
+    # Extra export: Elo ratings for CLAY matches only (1990–2024)
+    # ------------------------------------------------------------------
+    try:
+        clay_matches = load_clay_matches_1990_2024(files)
+        if clay_matches.empty:
+            print("No clay matches found between 2000 and 2024 – skipping clay Elo export.")
+        else:
+            clay_engine = EloEngine()
+            clay_engine.compute_from_matches(clay_matches)
+
+            clay_out_csv = "Data/elo_clay_2000_2024.csv"
+            export_all_players_timeseries_csv(clay_engine, out_csv=clay_out_csv)
+
+            print(f"Saved clay Elo (2000–2024) to: {os.path.abspath(clay_out_csv)}")
+    except Exception as e:
+        print(f"Failed to export clay Elo CSV: {e}")
+
 
     # # Export Roger Federer's time series from start to present
     # try:
