@@ -1,0 +1,44 @@
+Model: Baseline_Elo
+Accuracy: 0.6660, ROC AUC: 0.6660
+              precision    recall  f1-score   support
+
+           0     0.6651    0.6687    0.6669     11701
+           1     0.6669    0.6632    0.6650     11700
+
+    accuracy                         0.6660     23401
+   macro avg     0.6660    0.6660    0.6660     23401
+weighted avg     0.6660    0.6660    0.6660     23401
+
+Model: LogisticRegression
+Accuracy: 0.6658, ROC AUC: 0.7314
+              precision    recall  f1-score   support
+
+           0     0.6647    0.6691    0.6669     11701
+           1     0.6669    0.6625    0.6647     11700
+
+    accuracy                         0.6658     23401
+   macro avg     0.6658    0.6658    0.6658     23401
+weighted avg     0.6658    0.6658    0.6658     23401
+
+Model: RandomForest
+Accuracy: 0.6148, ROC AUC: 0.6647
+              precision    recall  f1-score   support
+
+           0     0.6143    0.6169    0.6156     11701
+           1     0.6152    0.6126    0.6139     11700
+
+    accuracy                         0.6148     23401
+   macro avg     0.6148    0.6148    0.6148     23401
+weighted avg     0.6148    0.6148    0.6148     23401
+
+Model: XGBoost
+Accuracy: 0.6565, ROC AUC: 0.7200
+              precision    recall  f1-score   support
+
+           0     0.6565    0.6565    0.6565     11701
+           1     0.6565    0.6564    0.6564     11700
+
+    accuracy                         0.6565     23401
+   macro avg     0.6565    0.6565    0.6565     23401
+weighted avg     0.6565    0.6565    0.6565     23401
+
