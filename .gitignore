@@ -171,6 +171,15 @@ cython_debug/
 .pypirc
 
 # other files
+<<<<<<< Updated upstream
 flagged/
 
 myenv/
+=======
+flagged/final_data_with_date.csv
+final_data.csv
+final_data_with_date.csv
+final_data.csv
+>>>>>>> Stashed changes
+
+.DS_Store
