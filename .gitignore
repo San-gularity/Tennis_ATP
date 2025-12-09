@@ -174,3 +174,10 @@ cython_debug/
 flagged/
 
 myenv/
+flagged/final_data_with_date.csv
+final_data.csv
+final_data_with_date.csv
+final_data.csv
+
+.DS_Store
+final_data_with_date.csv
